@@ -7,6 +7,8 @@ import AITaskSuggester from './AITaskSuggester';
 import ActivityLog from './ActivityLog';
 import TaskCreatorModal from './TaskCreatorModal';
 import { cn } from '../lib/utils';
+import { ApprovalRequest, RewardSettings } from '../types';
+import { loadApprovalRequests, loadRewardSettings, removeApprovalRequest, saveRewardSettings } from '../lib/rewards';
 
 interface ParentDashboardProps {
   kids: Kid[];
@@ -19,6 +21,9 @@ export default function ParentDashboard({ kids, tasks, onRefresh }: ParentDashbo
   const [showAI, setShowAI] = useState(false);
   const [showTaskCreator, setShowTaskCreator] = useState(false);
   const [activeNav, setActiveNav] = useState<'kids' | 'tasks' | 'reports' | 'settings'>('tasks');
+  const [rewardSettings, setRewardSettings] = useState<RewardSettings>(() => loadRewardSettings());
+  const [pendingApprovals, setPendingApprovals] = useState<ApprovalRequest[]>(() => loadApprovalRequests());
+  const [saveNotice, setSaveNotice] = useState('');
 
   const filteredTasks = selectedKid 
     ? tasks.filter(t => t.assignedTo === selectedKid)
@@ -67,18 +72,108 @@ export default function ParentDashboard({ kids, tasks, onRefresh }: ParentDashbo
           <section className="space-y-4 sm:space-y-6">
             <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-outline-variant">
               <h3 className="text-lg sm:text-xl font-bold text-on-surface mb-2">Settings</h3>
-              <p className="text-sm text-on-surface-variant">This section can hold app preferences, notifications, and account controls.</p>
+              <p className="text-sm text-on-surface-variant">Configure the main reward and decide whether kids need approval before earning points.</p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-              <div className="bg-white p-4 rounded-2xl border border-outline-variant">
-                <p className="text-xs font-bold uppercase text-on-surface-variant mb-1">Notifications</p>
-                <p className="text-sm text-on-surface">Manage reminder alerts and goal updates.</p>
+            <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-outline-variant space-y-4">
+              <div>
+                <p className="text-xs font-bold uppercase text-on-surface-variant mb-2">Reward Setup</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold uppercase text-on-surface-variant mb-1">Reward Label</label>
+                    <input
+                      value={rewardSettings.rewardLabel}
+                      onChange={e => setRewardSettings(prev => ({ ...prev, rewardLabel: e.target.value }))}
+                      className="w-full bg-surface-container border border-outline-variant rounded-xl h-11 px-3 text-sm"
+                      placeholder="Weekend Movie Night"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold uppercase text-on-surface-variant mb-1">Target Points</label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={rewardSettings.rewardTargetPoints}
+                      onChange={e => setRewardSettings(prev => ({ ...prev, rewardTargetPoints: Number(e.target.value) || 0 }))}
+                      className="w-full bg-surface-container border border-outline-variant rounded-xl h-11 px-3 text-sm"
+                    />
+                  </div>
+                </div>
               </div>
-              <div className="bg-white p-4 rounded-2xl border border-outline-variant">
-                <p className="text-xs font-bold uppercase text-on-surface-variant mb-1">Rewards</p>
-                <p className="text-sm text-on-surface">Adjust reward values and approval rules.</p>
+
+              <label className="flex items-center gap-3 bg-surface-container rounded-2xl px-4 py-3">
+                <input
+                  type="checkbox"
+                  checked={rewardSettings.approvalRequired}
+                  onChange={e => setRewardSettings(prev => ({ ...prev, approvalRequired: e.target.checked }))}
+                  className="w-4 h-4"
+                />
+                <div>
+                  <p className="text-sm font-semibold text-on-surface">Require parent approval before points are awarded</p>
+                  <p className="text-xs text-on-surface-variant">When enabled, kids send completion requests and you approve them here.</p>
+                </div>
+              </label>
+
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => {
+                    saveRewardSettings(rewardSettings);
+                    setPendingApprovals(loadApprovalRequests());
+                    setSaveNotice('Settings saved');
+                    window.setTimeout(() => setSaveNotice(''), 2000);
+                  }}
+                  className="bg-primary text-white px-4 py-2 rounded-xl font-bold text-sm hover:scale-105 active:scale-95 transition-all"
+                >
+                  Save Settings
+                </button>
+                {saveNotice && <span className="text-sm text-primary font-semibold">{saveNotice}</span>}
               </div>
+            </div>
+
+            <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-outline-variant space-y-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-bold uppercase text-on-surface-variant mb-1">Pending Approvals</p>
+                  <h4 className="text-base sm:text-lg font-bold text-on-surface">Review kid completion requests</h4>
+                </div>
+                <button
+                  onClick={() => setPendingApprovals(loadApprovalRequests())}
+                  className="text-xs font-bold text-primary hover:underline"
+                >
+                  Refresh
+                </button>
+              </div>
+
+              {pendingApprovals.length === 0 ? (
+                <p className="text-sm text-on-surface-variant">No pending approvals right now.</p>
+              ) : (
+                <div className="space-y-3">
+                  {pendingApprovals.map(request => (
+                    <div key={request.taskId} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-2xl bg-surface-container border border-outline-variant">
+                      <div>
+                        <p className="font-bold text-on-surface">{request.taskTitle}</p>
+                        <p className="text-xs text-on-surface-variant">{request.kidName} requested approval for +Rs. {request.points}</p>
+                      </div>
+                      <button
+                        onClick={async () => {
+                          const res = await fetch(`/api/tasks/${request.taskId}/complete`, { method: 'POST' });
+                          if (!res.ok) {
+                            alert('Could not approve this task.');
+                            return;
+                          }
+
+                          const nextRequests = removeApprovalRequest(request.taskId);
+                          setPendingApprovals(nextRequests);
+                          onRefresh();
+                        }}
+                        className="bg-secondary text-white px-4 py-2 rounded-xl font-bold text-sm hover:scale-105 active:scale-95 transition-all"
+                      >
+                        Approve
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </section>
         );

@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 import WishListCreator from './WishListCreator';
 import WithdrawModal from './WithdrawModal';
+import { addApprovalRequest, loadApprovalRequests, loadRewardSettings } from '../lib/rewards';
 
 interface KidDashboardProps {
   kids: Kid[];
@@ -22,6 +23,7 @@ interface ToastMessage {
 export default function KidDashboard({ kids, tasks, onRefresh }: KidDashboardProps) {
   // For demo, we just pick the first kid (Bilal)
   const currentKid = kids.find(k => k.id === 'bilal') || kids[0];
+  const rewardSettings = loadRewardSettings();
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [localKidPoints, setLocalKidPoints] = useState(currentKid?.points ?? 0);
   const [showWishListCreator, setShowWishListCreator] = useState(false);
@@ -96,16 +98,16 @@ export default function KidDashboard({ kids, tasks, onRefresh }: KidDashboardPro
 
             <div className="bg-primary/5 border border-primary/20 rounded-3xl p-5 sm:p-6">
               <h4 className="text-base sm:text-lg font-bold text-on-surface mb-2">🎁 Next Wish</h4>
-              <p className="text-sm sm:text-base text-on-surface-variant">Weekend Movie Night</p>
+              <p className="text-sm sm:text-base text-on-surface-variant">{rewardSettings.rewardLabel}</p>
               <div className="mt-4 w-full bg-surface-container h-3 sm:h-4 rounded-full overflow-hidden shadow-inner">
                 <motion.div 
                   key={localKidPoints}
-                  animate={{ width: `${Math.min(100, (localKidPoints / 500) * 100)}%` }}
+                  animate={{ width: `${Math.min(100, (localKidPoints / Math.max(1, rewardSettings.rewardTargetPoints)) * 100)}%` }}
                   transition={{ type: 'spring', stiffness: 100, damping: 20 }}
-                  className="bg-gradient-to-r from-primary to-secondary-container h-full rounded-full shadow-[0_0_8px_rgba(0,150,70,0.3)]"
+                  className="bg-linear-to-r from-primary to-secondary-container h-full rounded-full shadow-[0_0_8px_rgba(0,150,70,0.3)]"
                 />
               </div>
-              <p className="mt-2 text-xs sm:text-sm text-on-surface-variant">{Math.max(0, 500 - localKidPoints)} Rs. left to reach this wish.</p>
+              <p className="mt-2 text-xs sm:text-sm text-on-surface-variant">{Math.max(0, rewardSettings.rewardTargetPoints - localKidPoints)} Rs. left to reach this wish.</p>
             </div>
           </section>
         );
@@ -115,7 +117,7 @@ export default function KidDashboard({ kids, tasks, onRefresh }: KidDashboardPro
           <section className="space-y-4 sm:space-y-6">
             <div className="bg-secondary-container rounded-3xl p-6 sm:p-8 relative overflow-hidden shadow-lg group border-b-8 border-secondary active:border-b-4 active:translate-y-1 transition-all">
               <div className="absolute -top-10 -right-10 opacity-10 group-hover:scale-110 transition-transform">
-                <Wallet size={150} className="sm:w-[200px]" />
+                <Wallet size={150} className="sm:w-50" />
               </div>
               <div className="relative z-10">
                 <h2 className="text-xs font-black uppercase tracking-[0.2em] text-on-secondary-container mb-2">My Point Bank</h2>
@@ -147,7 +149,7 @@ export default function KidDashboard({ kids, tasks, onRefresh }: KidDashboardPro
           <>
             <section className="bg-secondary-container rounded-3xl p-6 sm:p-8 relative overflow-hidden shadow-lg group border-b-8 border-secondary active:border-b-4 active:translate-y-1 transition-all">
               <div className="absolute -top-10 -right-10 opacity-10 group-hover:scale-110 transition-transform">
-                <Wallet size={150} className="sm:w-[200px]" />
+                <Wallet size={150} className="sm:w-50" />
               </div>
               <div className="relative z-10">
                 <h2 className="text-xs font-black uppercase tracking-[0.2em] text-on-secondary-container mb-2">My Point Bank</h2>
@@ -214,8 +216,8 @@ export default function KidDashboard({ kids, tasks, onRefresh }: KidDashboardPro
                     <p className="text-xs sm:text-sm text-on-surface-variant">Weekend Movie Night</p>
                   </div>
                   <div className="text-right text-sm">
-                    <div className="font-bold text-primary text-sm">Rs. {localKidPoints} / Rs. 500</div>
-                    <div className="text-xs text-on-surface-variant">{Math.round((localKidPoints / 500) * 100)}% Complete</div>
+                    <div className="font-bold text-primary text-sm">Rs. {localKidPoints} / Rs. {rewardSettings.rewardTargetPoints}</div>
+                    <div className="text-xs text-on-surface-variant">{Math.round((localKidPoints / Math.max(1, rewardSettings.rewardTargetPoints)) * 100)}% Complete</div>
                   </div>
                 </div>
                 <div className="w-full bg-surface-container h-3 sm:h-4 rounded-full overflow-hidden shadow-inner">
@@ -223,7 +225,7 @@ export default function KidDashboard({ kids, tasks, onRefresh }: KidDashboardPro
                     key={localKidPoints}
                     animate={{ width: `${(localKidPoints / 500) * 100}%` }}
                     transition={{ type: 'spring', stiffness: 100, damping: 20 }}
-                    className="bg-gradient-to-r from-primary to-secondary-container h-full rounded-full shadow-[0_0_8px_rgba(0,150,70,0.3)]"
+                    className="bg-linear-to-r from-primary to-secondary-container h-full rounded-full shadow-[0_0_8px_rgba(0,150,70,0.3)]"
                   />
                 </div>
                 <div className="flex justify-between text-xs text-on-surface-variant font-semibold">
@@ -241,6 +243,35 @@ export default function KidDashboard({ kids, tasks, onRefresh }: KidDashboardPro
     try {
       const task = tasks.find(t => t.id === taskId);
       if (!task) return;
+
+      if (rewardSettings.approvalRequired) {
+        const existingRequests = loadApprovalRequests();
+        const alreadyRequested = existingRequests.some(request => request.taskId === taskId);
+
+        if (!alreadyRequested) {
+          addApprovalRequest({
+            taskId: task.id,
+            kidId: currentKid.id,
+            kidName: currentKid.name,
+            taskTitle: task.title,
+            points: task.points,
+            requestedAt: new Date().toISOString(),
+          });
+        }
+
+        const toastId = Date.now().toString();
+        setToasts(prev => [...prev, {
+          id: toastId,
+          message: alreadyRequested ? 'Approval already requested' : 'Sent for parent approval',
+          taskTitle: task.title
+        }]);
+
+        setTimeout(() => {
+          setToasts(prev => prev.filter(t => t.id !== toastId));
+        }, 4000);
+
+        return;
+      }
 
       // Call motivate endpoint for celebration message
       const motivateRes = await fetch('/api/ai/motivate', {
@@ -331,7 +362,7 @@ export default function KidDashboard({ kids, tasks, onRefresh }: KidDashboardPro
                   animate={{ opacity: 1, scale: 1, x: 0, y: 0 }}
                   exit={{ opacity: 0, scale: 0.3, x: -20, y: 20 }}
                   transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-                  className="absolute -top-12 -right-20 bg-gradient-to-r from-secondary to-secondary-container text-on-secondary rounded-full px-3 sm:px-4 py-1.5 sm:py-2 text-xs font-black shadow-xl whitespace-nowrap z-50"
+                  className="absolute -top-12 -right-20 bg-linear-to-r from-secondary to-secondary-container text-on-secondary rounded-full px-3 sm:px-4 py-1.5 sm:py-2 text-xs font-black shadow-xl whitespace-nowrap z-50"
                 >
                   ✨ {toast.message.substring(0, 35)}
                 </motion.div>
@@ -340,7 +371,7 @@ export default function KidDashboard({ kids, tasks, onRefresh }: KidDashboardPro
           </div>
           
           <div className="flex-1 min-w-0">
-            <h1 className="text-2xl sm:text-3xl font-black text-primary break-words">Salam, {currentKid.name}! 🌟</h1>
+            <h1 className="text-2xl sm:text-3xl font-black text-primary wrap-break-word">Salam, {currentKid.name}! 🌟</h1>
             <p className="text-xs sm:text-sm text-on-surface-variant font-medium">Ready to earn rewards?</p>
           </div>
         </div>
@@ -397,7 +428,7 @@ export default function KidDashboard({ kids, tasks, onRefresh }: KidDashboardPro
 
       {/* WishListCreator Modal */}
       {showWishListCreator && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-sm">
+        <div className="fixed inset-0 z-100 flex items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-sm">
           <WishListCreator 
             onClose={() => setShowWishListCreator(false)} 
             kidId={currentKid.id}
@@ -408,7 +439,7 @@ export default function KidDashboard({ kids, tasks, onRefresh }: KidDashboardPro
 
       {/* Withdraw Modal */}
       {showWithdrawModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-sm">
+        <div className="fixed inset-0 z-100 flex items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-sm">
           <WithdrawModal 
             onClose={() => setShowWithdrawModal(false)} 
             availablePoints={localKidPoints}

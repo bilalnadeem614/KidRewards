@@ -22,3 +22,18 @@ export interface AITaskSuggestion {
   category: string;
   description: string;
 }
+
+export interface RewardSettings {
+  rewardLabel: string;
+  rewardTargetPoints: number;
+  approvalRequired: boolean;
+}
+
+export interface ApprovalRequest {
+  taskId: number;
+  kidId: string;
+  kidName: string;
+  taskTitle: string;
+  points: number;
+  requestedAt: string;
+}
