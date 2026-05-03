@@ -67,7 +67,8 @@ const buildFallbackSuggestions = (age: number, interestsText: string) => {
 async function startServer() {
   const app = express();
   // const PORT = 3000;
-  const PORT = process.env.PORT || 8080;
+  // const PORT = process.env.PORT || 8080;
+  const PORT = parseInt(process.env.PORT || "8080", 10);
 
   app.use(express.json());
 
