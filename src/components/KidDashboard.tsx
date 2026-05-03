@@ -4,6 +4,8 @@ import TaskCard from './TaskCard';
 import { Wallet, Star, Trophy, ArrowRight, Zap, Home, ClipboardList, Gift, Coins } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
+import WishListCreator from './WishListCreator';
+import WithdrawModal from './WithdrawModal';
 
 interface KidDashboardProps {
   kids: Kid[];
@@ -20,11 +22,25 @@ interface ToastMessage {
 export default function KidDashboard({ kids, tasks, onRefresh }: KidDashboardProps) {
   // For demo, we just pick the first kid (Bilal)
   const currentKid = kids.find(k => k.id === 'bilal') || kids[0];
+  if (!currentKid) {
+    return (
+      <div className="min-h-screen bg-surface flex items-center justify-center px-6 text-center">
+        <div>
+          <h1 className="text-2xl font-bold text-on-surface mb-2">No kid profile found</h1>
+          <p className="text-on-surface-variant">Add a kid profile to view the child dashboard.</p>
+        </div>
+      </div>
+    );
+  }
+
   const kidTasks = tasks.filter(t => t.assignedTo === currentKid.id);
   const pendingTasks = kidTasks.filter(t => !t.completed);
   
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [localKidPoints, setLocalKidPoints] = useState(currentKid.points);
+  const [showWishListCreator, setShowWishListCreator] = useState(false);
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+  const [activeNav, setActiveNav] = useState<'home' | 'tasks' | 'wishes' | 'bank'>('home');
 
   const handleComplete = async (taskId: number) => {
     try {
@@ -69,6 +85,35 @@ export default function KidDashboard({ kids, tasks, onRefresh }: KidDashboardPro
     } catch (e) {
       console.error('Error completing task:', e);
     }
+  };
+
+  const handleAddGoal = (goal: { title: string; targetPoints: number; description: string }) => {
+    console.log('Goal added:', goal);
+    // Here you could save the goal to backend if needed
+    const toastId = Date.now().toString();
+    setToasts(prev => [...prev, {
+      id: toastId,
+      message: `Goal "${goal.title}" created!`,
+      taskTitle: goal.title
+    }]);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== toastId));
+    }, 4000);
+  };
+
+  const handleWithdraw = (amount: number) => {
+    console.log('Withdrew:', amount);
+    // Here you could save the withdrawal to backend if needed
+    setLocalKidPoints(prev => Math.max(0, prev - amount));
+    const toastId = Date.now().toString();
+    setToasts(prev => [...prev, {
+      id: toastId,
+      message: `Successfully withdrew Rs. ${amount}!`,
+      taskTitle: 'Withdrawal'
+    }]);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== toastId));
+    }, 4000);
   };
 
   return (
@@ -126,10 +171,16 @@ export default function KidDashboard({ kids, tasks, onRefresh }: KidDashboardPro
             <span className="text-lg sm:text-xl font-bold text-on-secondary-fixed/50">Rs.</span>
           </motion.div>
           <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row gap-2 sm:gap-3">
-            <button className="flex-1 bg-white text-secondary font-bold py-3 sm:py-4 rounded-2xl shadow-[0_4px_0_0_#855300] active:shadow-none active:translate-y-1 transition-all text-sm sm:text-base">
+            <button 
+              onClick={() => setShowWithdrawModal(true)}
+              className="flex-1 bg-white text-secondary font-bold py-3 sm:py-4 rounded-2xl shadow-[0_4px_0_0_#855300] active:shadow-none active:translate-y-1 transition-all text-sm sm:text-base"
+            >
               Withdraw
             </button>
-            <button className="flex-1 bg-primary text-white font-bold py-3 sm:py-4 rounded-2xl shadow-[0_4px_0_0_#003c0b] active:shadow-none active:translate-y-1 transition-all text-sm sm:text-base">
+            <button 
+              onClick={() => setShowWishListCreator(true)}
+              className="flex-1 bg-primary text-white font-bold py-3 sm:py-4 rounded-2xl shadow-[0_4px_0_0_#003c0b] active:shadow-none active:translate-y-1 transition-all text-sm sm:text-base"
+            >
               Add Goal
             </button>
           </div>
@@ -194,23 +245,71 @@ export default function KidDashboard({ kids, tasks, onRefresh }: KidDashboardPro
         </div>
       </section>
 
-      {/* Bottom Nav Mockup */}
+      {/* Bottom Navigation */}
       <nav className="fixed bottom-0 left-0 w-full h-20 sm:h-24 bg-white border-t border-outline-variant shadow-2xl flex justify-around items-center px-2 sm:px-4">
-        {[
-          { icon: <Home size={20} className="sm:w-6 sm:h-6" />, label: "Home", active: true },
-          { icon: <ClipboardList size={20} className="sm:w-6 sm:h-6" />, label: "Tasks", active: false },
-          { icon: <Gift size={20} className="sm:w-6 sm:h-6" />, label: "Wishes", active: false },
-          { icon: <Coins size={20} className="sm:w-6 sm:h-6" />, label: "Bank", active: false }
-        ].map((item, i) => (
-          <div key={i} className={cn(
+        <button
+          onClick={() => setActiveNav('home')}
+          className={cn(
             "flex flex-col items-center justify-center px-2 sm:px-6 py-1 sm:py-2 rounded-2xl transition-all cursor-pointer",
-            item.active ? "bg-secondary-container text-on-secondary-container shadow-md translate-y-[-8px]" : "text-on-surface-variant opacity-60"
-          )}>
-            {item.icon}
-            <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider mt-1">{item.label}</span>
-          </div>
-        ))}
+            activeNav === 'home' ? "bg-secondary-container text-on-secondary-container shadow-md -translate-y-2" : "text-on-surface-variant opacity-60 hover:opacity-100"
+          )}
+        >
+          <Home size={20} className="sm:w-6 sm:h-6" />
+          <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider mt-1">Home</span>
+        </button>
+        <button
+          onClick={() => setActiveNav('tasks')}
+          className={cn(
+            "flex flex-col items-center justify-center px-2 sm:px-6 py-1 sm:py-2 rounded-2xl transition-all cursor-pointer",
+            activeNav === 'tasks' ? "bg-secondary-container text-on-secondary-container shadow-md -translate-y-2" : "text-on-surface-variant opacity-60 hover:opacity-100"
+          )}
+        >
+          <ClipboardList size={20} className="sm:w-6 sm:h-6" />
+          <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider mt-1">Tasks</span>
+        </button>
+        <button
+          onClick={() => setActiveNav('wishes')}
+          className={cn(
+            "flex flex-col items-center justify-center px-2 sm:px-6 py-1 sm:py-2 rounded-2xl transition-all cursor-pointer",
+            activeNav === 'wishes' ? "bg-secondary-container text-on-secondary-container shadow-md -translate-y-2" : "text-on-surface-variant opacity-60 hover:opacity-100"
+          )}
+        >
+          <Gift size={20} className="sm:w-6 sm:h-6" />
+          <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider mt-1">Wishes</span>
+        </button>
+        <button
+          onClick={() => setActiveNav('bank')}
+          className={cn(
+            "flex flex-col items-center justify-center px-2 sm:px-6 py-1 sm:py-2 rounded-2xl transition-all cursor-pointer",
+            activeNav === 'bank' ? "bg-secondary-container text-on-secondary-container shadow-md -translate-y-2" : "text-on-surface-variant opacity-60 hover:opacity-100"
+          )}
+        >
+          <Coins size={20} className="sm:w-6 sm:h-6" />
+          <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider mt-1">Bank</span>
+        </button>
       </nav>
+
+      {/* WishListCreator Modal */}
+      {showWishListCreator && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-sm">
+          <WishListCreator 
+            onClose={() => setShowWishListCreator(false)} 
+            kidId={currentKid.id}
+            onAddGoal={handleAddGoal}
+          />
+        </div>
+      )}
+
+      {/* Withdraw Modal */}
+      {showWithdrawModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-sm">
+          <WithdrawModal 
+            onClose={() => setShowWithdrawModal(false)} 
+            availablePoints={localKidPoints}
+            onWithdraw={handleWithdraw}
+          />
+        </div>
+      )}
     </div>
     </div>
   );

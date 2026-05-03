@@ -4,6 +4,7 @@ import TaskCard from './TaskCard';
 import { Bell, TrendingUp, Search, Calendar, ChevronRight, User, Baby, ShieldCheck, Sparkles, Plus } from 'lucide-react';
 import { motion } from 'motion/react';
 import AITaskSuggester from './AITaskSuggester';
+import ActivityLog from './ActivityLog';
 import { cn } from '../lib/utils';
 
 interface ParentDashboardProps {
@@ -15,12 +16,19 @@ interface ParentDashboardProps {
 export default function ParentDashboard({ kids, tasks, onRefresh }: ParentDashboardProps) {
   const [selectedKid, setSelectedKid] = useState<string | null>(null);
   const [showAI, setShowAI] = useState(false);
+  const [showActivityLog, setShowActivityLog] = useState(false);
+  const [activeNav, setActiveNav] = useState<'kids' | 'tasks' | 'reports' | 'settings'>('tasks');
 
   const filteredTasks = selectedKid 
     ? tasks.filter(t => t.assignedTo === selectedKid)
     : tasks;
 
   const totalPointsAwarded = tasks.filter(t => t.completed).reduce((sum, t) => sum + t.points, 0);
+
+  // If ActivityLog is shown, render it instead of the main dashboard
+  if (showActivityLog) {
+    return <ActivityLog tasks={tasks} kids={kids} onBack={() => setShowActivityLog(false)} />;
+  }
 
   return (
     <div className="min-h-screen bg-surface max-w-7xl mx-auto">
@@ -94,7 +102,10 @@ export default function ParentDashboard({ kids, tasks, onRefresh }: ParentDashbo
       {/* Today's Tasks Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-0 mb-4">
         <h3 className="text-lg sm:text-xl font-bold text-on-surface">Recent Activity</h3>
-        <button className="text-xs sm:text-sm font-bold text-primary flex items-center gap-1">
+        <button 
+          onClick={() => setShowActivityLog(true)}
+          className="text-xs sm:text-sm font-bold text-primary flex items-center gap-1 hover:gap-2 transition-all"
+        >
           View All <ChevronRight size={16} />
         </button>
       </div>
@@ -140,7 +151,10 @@ export default function ParentDashboard({ kids, tasks, onRefresh }: ParentDashbo
         >
           <Sparkles size={20} className="sm:w-6 sm:h-6" />
         </button>
-        <button className="bg-primary text-white w-12 sm:w-14 h-12 sm:h-14 rounded-full shadow-lg flex items-center justify-center hover:scale-110 active:scale-95 transition-all">
+        <button 
+          onClick={() => setShowAI(true)}
+          className="bg-primary text-white w-12 sm:w-14 h-12 sm:h-14 rounded-full shadow-lg flex items-center justify-center hover:scale-110 active:scale-95 transition-all"
+        >
           <Plus size={24} className="sm:w-8 sm:h-8" />
         </button>
       </div>
@@ -158,19 +172,48 @@ export default function ParentDashboard({ kids, tasks, onRefresh }: ParentDashbo
         </div>
       )}
 
-      {/* Bottom Nav Mockup */}
+      {/* Bottom Navigation */}
       <nav className="fixed bottom-0 left-0 w-full h-20 bg-white border-t border-outline-variant shadow-2xl flex justify-around items-center px-2 sm:px-4">
-        {[
-          { icon: <Baby size={20} className="sm:w-6 sm:h-6" />, label: "Kids", active: false },
-          { icon: <Calendar size={20} className="sm:w-6 sm:h-6" />, label: "Tasks", active: true },
-          { icon: <TrendingUp size={20} className="sm:w-6 sm:h-6" />, label: "Reports", active: false },
-          { icon: <Search size={20} className="sm:w-6 sm:h-6" />, label: "Settings", active: false }
-        ].map((item, i) => (
-          <div key={i} className={cn("flex flex-col items-center gap-0.5 sm:gap-1", item.active ? "text-primary" : "text-on-surface-variant")}>
-            <div className={cn("p-2 rounded-xl", item.active && "bg-primary/10")}>{item.icon}</div>
-            <span className="text-[10px] sm:text-[11px] font-bold uppercase">{item.label}</span>
-          </div>
-        ))}
+        <button
+          onClick={() => setActiveNav('kids')}
+          className={cn(
+            "flex flex-col items-center gap-0.5 sm:gap-1 px-4 py-2 rounded-xl transition-all cursor-pointer",
+            activeNav === 'kids' ? "text-primary bg-primary/10" : "text-on-surface-variant hover:text-on-surface"
+          )}
+        >
+          <Baby size={20} className="sm:w-6 sm:h-6" />
+          <span className="text-[10px] sm:text-[11px] font-bold uppercase">Kids</span>
+        </button>
+        <button
+          onClick={() => setActiveNav('tasks')}
+          className={cn(
+            "flex flex-col items-center gap-0.5 sm:gap-1 px-4 py-2 rounded-xl transition-all cursor-pointer",
+            activeNav === 'tasks' ? "text-primary bg-primary/10" : "text-on-surface-variant hover:text-on-surface"
+          )}
+        >
+          <Calendar size={20} className="sm:w-6 sm:h-6" />
+          <span className="text-[10px] sm:text-[11px] font-bold uppercase">Tasks</span>
+        </button>
+        <button
+          onClick={() => setActiveNav('reports')}
+          className={cn(
+            "flex flex-col items-center gap-0.5 sm:gap-1 px-4 py-2 rounded-xl transition-all cursor-pointer",
+            activeNav === 'reports' ? "text-primary bg-primary/10" : "text-on-surface-variant hover:text-on-surface"
+          )}
+        >
+          <TrendingUp size={20} className="sm:w-6 sm:h-6" />
+          <span className="text-[10px] sm:text-[11px] font-bold uppercase">Reports</span>
+        </button>
+        <button
+          onClick={() => setActiveNav('settings')}
+          className={cn(
+            "flex flex-col items-center gap-0.5 sm:gap-1 px-4 py-2 rounded-xl transition-all cursor-pointer",
+            activeNav === 'settings' ? "text-primary bg-primary/10" : "text-on-surface-variant hover:text-on-surface"
+          )}
+        >
+          <Search size={20} className="sm:w-6 sm:h-6" />
+          <span className="text-[10px] sm:text-[11px] font-bold uppercase">Settings</span>
+        </button>
       </nav>
       </div>
     </div>
