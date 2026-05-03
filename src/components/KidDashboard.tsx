@@ -1,12 +1,13 @@
-import React, { useState } from 'react';
-import { Kid, Task } from '../types';
+import React, { useState, useEffect } from 'react';
+import { Kid, Task, Goal } from '../types';
 import TaskCard from './TaskCard';
-import { Wallet, Star, Trophy, ArrowRight, Zap, Home, ClipboardList, Gift, Coins } from 'lucide-react';
+import { Wallet, Star, Trophy, ArrowRight, Zap, Home, ClipboardList, Gift, Coins, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 import WishListCreator from './WishListCreator';
 import WithdrawModal from './WithdrawModal';
 import { addApprovalRequest, loadApprovalRequests, loadRewardSettings } from '../lib/rewards';
+import { loadGoals, completeGoal } from '../lib/goals';
 
 interface KidDashboardProps {
   kids: Kid[];
@@ -29,6 +30,13 @@ export default function KidDashboard({ kids, tasks, onRefresh }: KidDashboardPro
   const [showWishListCreator, setShowWishListCreator] = useState(false);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [activeNav, setActiveNav] = useState<'home' | 'tasks' | 'wishes' | 'bank'>('home');
+  const [goals, setGoals] = useState<Goal[]>([]);
+
+  useEffect(() => {
+    if (currentKid) {
+      setGoals(loadGoals(currentKid.id));
+    }
+  }, [currentKid]);
 
   if (!currentKid) {
     return (
@@ -95,6 +103,83 @@ export default function KidDashboard({ kids, tasks, onRefresh }: KidDashboardPro
                 </button>
               </div>
             </div>
+
+            {/* Goals List */}
+            {goals.length === 0 ? (
+              <div className="bg-white rounded-3xl p-6 sm:p-8 text-center border border-outline-variant shadow-lg">
+                <Gift size={48} className="mx-auto text-primary/30 mb-3" />
+                <p className="text-on-surface font-semibold mb-2">No goals yet</p>
+                <p className="text-sm text-on-surface-variant">Create your first goal by clicking "Add Goal" above!</p>
+              </div>
+            ) : (
+              <div className="space-y-3 sm:space-y-4">
+                {goals.map(goal => (
+                  <motion.div
+                    key={goal.id}
+                    initial={{ scale: 0.95, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    className={cn(
+                      "rounded-3xl p-4 sm:p-5 shadow-lg border-2 transition-all",
+                      goal.completed
+                        ? "bg-green-50 border-green-200"
+                        : "bg-white border-outline-variant"
+                    )}
+                  >
+                    <div className="flex items-start gap-3 sm:gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <h4 className={cn(
+                            "font-bold text-sm sm:text-base",
+                            goal.completed ? "text-green-700 line-through" : "text-on-surface"
+                          )}>
+                            {goal.title}
+                          </h4>
+                          {goal.completed && (
+                            <span className="text-xs bg-green-200 text-green-700 px-2 py-1 rounded-full font-bold whitespace-nowrap">
+                              ✓ Complete
+                            </span>
+                          )}
+                        </div>
+                        {goal.description && (
+                          <p className="text-xs sm:text-sm text-on-surface-variant mb-3 line-clamp-2">
+                            {goal.description}
+                          </p>
+                        )}
+                        <div className="flex items-center justify-between gap-2 mb-2">
+                          <span className="text-xs text-on-surface-variant font-semibold">
+                            Rs. {goal.targetPoints}
+                          </span>
+                          <span className="text-xs text-on-surface-variant font-semibold">
+                            {Math.round((localKidPoints / Math.max(1, goal.targetPoints)) * 100)}%
+                          </span>
+                        </div>
+                        <div className="w-full bg-surface-container h-2 sm:h-3 rounded-full overflow-hidden shadow-inner">
+                          <motion.div
+                            initial={{ width: 0 }}
+                            animate={{ width: `${Math.min(100, (localKidPoints / Math.max(1, goal.targetPoints)) * 100)}%` }}
+                            transition={{ type: 'spring', stiffness: 100, damping: 20 }}
+                            className={cn(
+                              "h-full rounded-full shadow-md",
+                              goal.completed
+                                ? "bg-green-500"
+                                : "bg-linear-to-r from-primary to-secondary-container"
+                            )}
+                          />
+                        </div>
+                      </div>
+                      {!goal.completed && localKidPoints >= goal.targetPoints && (
+                        <button
+                          onClick={() => handleCompleteGoal(goal.id)}
+                          className="bg-primary text-white p-2 sm:p-3 rounded-2xl hover:scale-110 active:scale-95 transition-all shadow-lg shrink-0 font-bold text-xs sm:text-sm"
+                        >
+                          <Check size={18} className="sm:w-5 sm:h-5" />
+                        </button>
+                      )}
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            )}
 
             <div className="bg-primary/5 border border-primary/20 rounded-3xl p-5 sm:p-6">
               <h4 className="text-base sm:text-lg font-bold text-on-surface mb-2">🎁 Next Wish</h4>
@@ -246,7 +331,7 @@ export default function KidDashboard({ kids, tasks, onRefresh }: KidDashboardPro
 
       if (rewardSettings.approvalRequired) {
         const existingRequests = loadApprovalRequests();
-        const alreadyRequested = existingRequests.some(request => request.taskId === taskId);
+        const alreadyRequested = existingRequests.some(request => request.taskId === taskId && request.type === 'task');
 
         if (!alreadyRequested) {
           addApprovalRequest({
@@ -256,6 +341,7 @@ export default function KidDashboard({ kids, tasks, onRefresh }: KidDashboardPro
             taskTitle: task.title,
             points: task.points,
             requestedAt: new Date().toISOString(),
+            type: 'task'
           });
         }
 
@@ -313,9 +399,66 @@ export default function KidDashboard({ kids, tasks, onRefresh }: KidDashboardPro
     }
   };
 
+  const handleCompleteGoal = (goalId: string) => {
+    try {
+      const goal = goals.find(g => g.id === goalId);
+      if (!goal) return;
+
+      if (rewardSettings.approvalRequired) {
+        const existingRequests = loadApprovalRequests();
+        const alreadyRequested = existingRequests.some(request => request.goalId === goalId);
+
+        if (!alreadyRequested) {
+          addApprovalRequest({
+            goalId: goal.id,
+            kidId: currentKid.id,
+            kidName: currentKid.name,
+            goalTitle: goal.title,
+            points: goal.targetPoints,
+            requestedAt: new Date().toISOString(),
+            type: 'goal'
+          });
+        }
+
+        const toastId = Date.now().toString();
+        setToasts(prev => [...prev, {
+          id: toastId,
+          message: alreadyRequested ? 'Approval already requested' : 'Goal sent for parent approval',
+          taskTitle: goal.title
+        }]);
+
+        setTimeout(() => {
+          setToasts(prev => prev.filter(t => t.id !== toastId));
+        }, 4000);
+
+        return;
+      }
+
+      // Directly complete goal and award points
+      completeGoal(goalId);
+      setGoals(prev => prev.map(g => g.id === goalId ? { ...g, completed: true } : g));
+      setLocalKidPoints(prev => prev + goal.targetPoints);
+
+      const toastId = Date.now().toString();
+      setToasts(prev => [...prev, {
+        id: toastId,
+        message: `🎉 Goal completed! +Rs.${goal.targetPoints}`,
+        taskTitle: goal.title
+      }]);
+
+      setTimeout(() => {
+        setToasts(prev => prev.filter(t => t.id !== toastId));
+      }, 4000);
+    } catch (e) {
+      console.error('Error completing goal:', e);
+    }
+  };
+
   const handleAddGoal = (goal: { title: string; targetPoints: number; description: string }) => {
     console.log('Goal added:', goal);
-    // Here you could save the goal to backend if needed
+    // Reload goals from localStorage
+    setGoals(loadGoals(currentKid.id));
+    
     const toastId = Date.now().toString();
     setToasts(prev => [...prev, {
       id: toastId,

@@ -30,10 +30,23 @@ export interface RewardSettings {
 }
 
 export interface ApprovalRequest {
-  taskId: number;
+  taskId?: number;
+  goalId?: string;
   kidId: string;
   kidName: string;
-  taskTitle: string;
+  taskTitle?: string;
+  goalTitle?: string;
   points: number;
   requestedAt: string;
+  type: 'task' | 'goal';
+}
+
+export interface Goal {
+  id: string;
+  kidId: string;
+  title: string;
+  targetPoints: number;
+  description: string;
+  completed: boolean;
+  createdAt: string;
 }

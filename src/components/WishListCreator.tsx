@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Gift, Plus, Loader2 } from 'lucide-react';
 import { motion } from 'motion/react';
+import { saveGoal } from '../lib/goals';
 
 interface WishListCreatorProps {
   onClose: () => void;
@@ -22,17 +23,24 @@ export default function WishListCreator({ onClose, kidId, onAddGoal }: WishListC
       return;
     }
 
-    const goal = {
-      title: title.trim(),
-      targetPoints: parseInt(targetPoints, 10),
-      description: description.trim()
-    };
-
     setIsLoading(true);
     try {
+      saveGoal({
+        kidId: kidId,
+        title: title.trim(),
+        targetPoints: parseInt(targetPoints, 10),
+        description: description.trim(),
+        completed: false
+      });
+
       if (onAddGoal) {
-        onAddGoal(goal);
+        onAddGoal({
+          title: title.trim(),
+          targetPoints: parseInt(targetPoints, 10),
+          description: description.trim()
+        });
       }
+
       // Reset form
       setTitle('');
       setTargetPoints('500');

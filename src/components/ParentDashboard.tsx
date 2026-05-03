@@ -9,6 +9,7 @@ import TaskCreatorModal from './TaskCreatorModal';
 import { cn } from '../lib/utils';
 import { ApprovalRequest, RewardSettings } from '../types';
 import { loadApprovalRequests, loadRewardSettings, removeApprovalRequest, saveRewardSettings } from '../lib/rewards';
+import { completeGoal } from '../lib/goals';
 
 interface ParentDashboardProps {
   kids: Kid[];
@@ -148,30 +149,51 @@ export default function ParentDashboard({ kids, tasks, onRefresh }: ParentDashbo
                 <p className="text-sm text-on-surface-variant">No pending approvals right now.</p>
               ) : (
                 <div className="space-y-3">
-                  {pendingApprovals.map(request => (
-                    <div key={request.taskId} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-2xl bg-surface-container border border-outline-variant">
-                      <div>
-                        <p className="font-bold text-on-surface">{request.taskTitle}</p>
-                        <p className="text-xs text-on-surface-variant">{request.kidName} requested approval for +Rs. {request.points}</p>
-                      </div>
-                      <button
-                        onClick={async () => {
-                          const res = await fetch(`/api/tasks/${request.taskId}/complete`, { method: 'POST' });
-                          if (!res.ok) {
-                            alert('Could not approve this task.');
-                            return;
-                          }
+                  {pendingApprovals.map((request, idx) => {
+                    const isGoal = request.type === 'goal';
+                    const title = isGoal ? request.goalTitle : request.taskTitle;
+                    return (
+                      <div key={idx} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-2xl bg-surface-container border border-outline-variant">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <p className="font-bold text-on-surface">{title}</p>
+                            <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${isGoal ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
+                              {isGoal ? '🎁 Goal' : '✓ Task'}
+                            </span>
+                          </div>
+                          <p className="text-xs text-on-surface-variant">{request.kidName} requested approval for +Rs. {request.points}</p>
+                        </div>
+                        <button
+                          onClick={async () => {
+                            try {
+                              if (isGoal && request.goalId) {
+                                // Mark goal as complete
+                                completeGoal(request.goalId);
+                              } else if (request.taskId) {
+                                // Mark task as complete via API
+                                const res = await fetch(`/api/tasks/${request.taskId}/complete`, { method: 'POST' });
+                                if (!res.ok) {
+                                  alert('Could not approve this request.');
+                                  return;
+                                }
+                              }
 
-                          const nextRequests = removeApprovalRequest(request.taskId);
-                          setPendingApprovals(nextRequests);
-                          onRefresh();
-                        }}
-                        className="bg-secondary text-white px-4 py-2 rounded-xl font-bold text-sm hover:scale-105 active:scale-95 transition-all"
-                      >
-                        Approve
-                      </button>
-                    </div>
-                  ))}
+                              const nextId = isGoal ? request.goalId : request.taskId;
+                              const nextRequests = removeApprovalRequest(request.taskId, request.goalId);
+                              setPendingApprovals(nextRequests);
+                              onRefresh();
+                            } catch (e) {
+                              console.error('Error approving request:', e);
+                              alert('Could not approve this request.');
+                            }
+                          }}
+                          className="bg-secondary text-white px-4 py-2 rounded-xl font-bold text-sm hover:scale-105 active:scale-95 transition-all whitespace-nowrap"
+                        >
+                          Approve
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>

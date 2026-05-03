@@ -1,16 +1,9 @@
+import { ApprovalRequest } from '../types';
+
 export interface RewardSettings {
   rewardLabel: string;
   rewardTargetPoints: number;
   approvalRequired: boolean;
-}
-
-export interface ApprovalRequest {
-  taskId: number;
-  kidId: string;
-  kidName: string;
-  taskTitle: string;
-  points: number;
-  requestedAt: string;
 }
 
 const SETTINGS_KEY = 'kidrewards_reward_settings';
@@ -72,7 +65,13 @@ export const saveApprovalRequests = (requests: ApprovalRequest[]) => {
 
 export const addApprovalRequest = (request: ApprovalRequest) => {
   const requests = loadApprovalRequests();
-  const exists = requests.some(item => item.taskId === request.taskId);
+  const exists = requests.some(item => {
+    if (request.type === 'task') {
+      return item.taskId === request.taskId && item.type === 'task';
+    } else {
+      return item.goalId === request.goalId && item.type === 'goal';
+    }
+  });
 
   if (exists) {
     return requests;
@@ -83,8 +82,15 @@ export const addApprovalRequest = (request: ApprovalRequest) => {
   return nextRequests;
 };
 
-export const removeApprovalRequest = (taskId: number) => {
-  const requests = loadApprovalRequests().filter(request => request.taskId !== taskId);
+export const removeApprovalRequest = (taskId?: number, goalId?: string) => {
+  const requests = loadApprovalRequests().filter(request => {
+    if (taskId) {
+      return request.taskId !== taskId;
+    } else if (goalId) {
+      return request.goalId !== goalId;
+    }
+    return true;
+  });
   saveApprovalRequests(requests);
   return requests;
 };
