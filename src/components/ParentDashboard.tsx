@@ -5,6 +5,7 @@ import { Bell, TrendingUp, Search, Calendar, ChevronRight, User, Baby, ShieldChe
 import { motion } from 'motion/react';
 import AITaskSuggester from './AITaskSuggester';
 import ActivityLog from './ActivityLog';
+import TaskCreatorModal from './TaskCreatorModal';
 import { cn } from '../lib/utils';
 
 interface ParentDashboardProps {
@@ -16,6 +17,7 @@ interface ParentDashboardProps {
 export default function ParentDashboard({ kids, tasks, onRefresh }: ParentDashboardProps) {
   const [selectedKid, setSelectedKid] = useState<string | null>(null);
   const [showAI, setShowAI] = useState(false);
+  const [showTaskCreator, setShowTaskCreator] = useState(false);
   const [activeNav, setActiveNav] = useState<'kids' | 'tasks' | 'reports' | 'settings'>('tasks');
 
   const filteredTasks = selectedKid 
@@ -212,16 +214,34 @@ export default function ParentDashboard({ kids, tasks, onRefresh }: ParentDashbo
           <Sparkles size={20} className="sm:w-6 sm:h-6" />
         </button>
         <button 
-          onClick={() => setShowAI(true)}
+          onClick={() => setShowTaskCreator(true)}
           className="bg-primary text-white w-12 sm:w-14 h-12 sm:h-14 rounded-full shadow-lg flex items-center justify-center hover:scale-110 active:scale-95 transition-all"
         >
           <Plus size={24} className="sm:w-8 sm:h-8" />
         </button>
       </div>
 
+      {/* Task Creator Modal */}
+      {showTaskCreator && (
+        <div className="fixed inset-0 z-100 flex items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-sm">
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="w-full max-w-lg max-h-[90vh] overflow-y-auto"
+          >
+            <TaskCreatorModal
+              kids={kids}
+              defaultKidId={selectedKid}
+              onClose={() => setShowTaskCreator(false)}
+              onCreated={onRefresh}
+            />
+          </motion.div>
+        </div>
+      )}
+
       {/* AI Modal */}
       {showAI && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-sm">
+        <div className="fixed inset-0 z-100 flex items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-sm">
           <motion.div 
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
