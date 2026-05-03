@@ -20,15 +20,23 @@ export default function AITaskSuggester({ onClose, onRefresh, kids }: AITaskSugg
   const getSuggestions = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/ai/suggest', {
+      const res = await fetch('/api/ai/suggest-tasks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ age, interests })
+        body: JSON.stringify({ 
+          childAge: parseInt(age, 10), 
+          interests 
+        })
       });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || 'Failed to fetch suggestions');
+      }
       const data = await res.json();
       setSuggestions(data);
     } catch (e) {
-      console.error(e);
+      console.error('Error fetching suggestions:', e);
+      alert('Failed to generate suggestions. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -55,27 +63,27 @@ export default function AITaskSuggester({ onClose, onRefresh, kids }: AITaskSugg
   };
 
   return (
-    <div className="bg-white rounded-3xl p-8 shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto w-full border border-primary/10">
-      <div className="flex justify-between items-center">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-secondary-container rounded-xl flex items-center justify-center text-on-secondary-container">
-            <Sparkles size={24} />
+    <div className="bg-white rounded-3xl p-5 sm:p-8 shadow-2xl space-y-4 sm:space-y-6 max-h-[90vh] overflow-y-auto w-full border border-primary/10">
+      <div className="flex justify-between items-start sm:items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+          <div className="w-8 h-8 sm:w-10 sm:h-10 bg-secondary-container rounded-xl flex items-center justify-center text-on-secondary-container shrink-0">
+            <Sparkles size={18} className="sm:w-6 sm:h-6" />
           </div>
-          <h2 className="text-2xl font-bold text-on-surface">AI Task Suggester</h2>
+          <h2 className="text-lg sm:text-2xl font-bold text-on-surface truncate">AI Task Suggester</h2>
         </div>
-        <button onClick={onClose} className="p-2 hover:bg-surface-container rounded-full text-on-surface-variant">
-          <X size={24} />
+        <button onClick={onClose} className="p-2 hover:bg-surface-container rounded-full text-on-surface-variant shrink-0">
+          <X size={20} className="sm:w-6 sm:h-6" />
         </button>
       </div>
 
-      <div className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
+      <div className="space-y-3 sm:space-y-4">
+        <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1">
             <label className="text-xs font-bold text-on-surface-variant uppercase">Assign To</label>
             <select 
               value={selectedKid} 
               onChange={e => setSelectedKid(e.target.value)}
-              className="w-full bg-surface-container border-none rounded-xl h-12 px-4 focus:ring-2 focus:ring-primary"
+              className="w-full bg-surface-container border-none rounded-xl h-10 sm:h-12 px-3 sm:px-4 text-sm focus:ring-2 focus:ring-primary"
             >
               {kids.map(k => <option key={k.id} value={k.id}>{k.name}</option>)}
             </select>
@@ -86,7 +94,7 @@ export default function AITaskSuggester({ onClose, onRefresh, kids }: AITaskSugg
               type="number" 
               value={age} 
               onChange={e => setAge(e.target.value)}
-              className="w-full bg-surface-container border-none rounded-xl h-12 px-4 focus:ring-2 focus:ring-primary"
+              className="w-full bg-surface-container border-none rounded-xl h-10 sm:h-12 px-3 sm:px-4 text-sm focus:ring-2 focus:ring-primary"
             />
           </div>
         </div>
@@ -96,7 +104,7 @@ export default function AITaskSuggester({ onClose, onRefresh, kids }: AITaskSugg
             type="text" 
             value={interests} 
             onChange={e => setInterests(e.target.value)}
-            className="w-full bg-surface-container border-none rounded-xl h-12 px-4 focus:ring-2 focus:ring-primary"
+            className="w-full bg-surface-container border-none rounded-xl h-10 sm:h-12 px-3 sm:px-4 text-sm focus:ring-2 focus:ring-primary"
             placeholder="e.g., Space, Dinosaurs, Drawing"
           />
         </div>
@@ -105,9 +113,9 @@ export default function AITaskSuggester({ onClose, onRefresh, kids }: AITaskSugg
       <button 
         onClick={getSuggestions}
         disabled={loading}
-        className="w-full h-14 bg-primary text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-primary-container disabled:opacity-50 transition-all shadow-lg active:scale-95"
+        className="w-full h-12 sm:h-14 bg-primary text-white rounded-2xl font-bold text-sm sm:text-base flex items-center justify-center gap-2 hover:bg-primary-container disabled:opacity-50 transition-all shadow-lg active:scale-95"
       >
-        {loading ? <Loader2 className="animate-spin" /> : <Sparkle size={20} />}
+        {loading ? <Loader2 className="animate-spin w-4 h-4 sm:w-5 sm:h-5" /> : <Sparkle size={18} className="sm:w-5 sm:h-5" />}
         {loading ? 'Thinking...' : 'Generate New Missions'}
       </button>
 
@@ -116,28 +124,39 @@ export default function AITaskSuggester({ onClose, onRefresh, kids }: AITaskSugg
           <motion.div 
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
-            className="space-y-4 pt-4 border-t"
+            className="space-y-2 sm:space-y-3 pt-3 sm:pt-4 border-t border-outline-variant"
           >
-            {suggestions.map((s, i) => (
+            <p className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Suggested Missions</p>
+            {suggestions.map((s: any, i) => (
               <motion.div 
                 key={i}
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: i * 0.1 }}
-                className="bg-surface-container-low p-4 rounded-2xl flex items-center justify-between group"
+                transition={{ delay: i * 0.08 }}
+                className="bg-gradient-to-r from-primary/5 to-transparent p-3 sm:p-4 rounded-2xl border border-primary/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-3 hover:border-primary/40 transition-all"
               >
-                <div>
-                  <h4 className="font-bold text-on-surface">{s.title}</h4>
-                  <div className="flex gap-2 text-xs font-semibold mt-1">
-                    <span className="text-primary">+{s.points} PTS</span>
-                    <span className="text-on-surface-variant">{s.category}</span>
+                <div className="flex-1 min-w-0">
+                  <h4 className="font-bold text-on-surface text-sm sm:text-base">{s.title}</h4>
+                  {s.reason && (
+                    <p className="text-xs sm:text-sm text-on-surface-variant mt-1">{s.reason}</p>
+                  )}
+                  <div className="flex gap-2 text-xs font-semibold mt-1 sm:mt-2">
+                    <span className="inline-flex items-center gap-1 bg-primary/10 text-primary px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-lg text-xs">
+                      +Rs. {s.points}
+                    </span>
                   </div>
                 </div>
                 <button 
-                  onClick={() => addTask(s)}
-                  className="p-2 text-primary hover:bg-primary/10 rounded-full transition-colors opacity-0 group-hover:opacity-100"
+                  onClick={() => addTask({ 
+                    title: s.title, 
+                    points: s.points, 
+                    category: 'AI-Suggested',
+                    description: s.reason || 'AI-generated task suggestion'
+                  })}
+                  className="shrink-0 px-2.5 sm:px-3 py-1.5 sm:py-2 bg-primary text-white rounded-xl font-semibold text-xs hover:bg-primary-container active:scale-95 transition-all flex items-center gap-1 shadow-sm whitespace-nowrap"
                 >
-                  <PlusCircle size={24} />
+                  <PlusCircle size={14} className="sm:w-4 sm:h-4" />
+                  Add
                 </button>
               </motion.div>
             ))}

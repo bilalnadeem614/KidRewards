@@ -53,16 +53,16 @@ export default function App() {
   return (
     <div className="min-h-screen bg-surface flex flex-col">
       {/* Mode Switcher Floating Toggle */}
-      <div className="fixed top-20 right-4 z-[60]">
+      <div className="fixed top-4 sm:top-20 right-2 sm:right-4 z-[60]">
         <button 
           onClick={() => setViewMode(prev => prev === 'parent' ? 'kid' : 'parent')}
-          className="bg-white/80 backdrop-blur-md border border-outline-variant p-2 rounded-full shadow-lg flex items-center gap-2 transition-all hover:scale-105 active:scale-95"
+          className="bg-white/80 backdrop-blur-md border border-outline-variant p-1.5 sm:p-2 rounded-full shadow-lg flex items-center gap-1 sm:gap-2 transition-all hover:scale-105 active:scale-95"
         >
-          <div className={`p-2 rounded-full transition-colors ${viewMode === 'parent' ? 'bg-primary text-white' : 'text-on-surface-variant'}`}>
-            <User size={18} />
+          <div className={`p-1.5 sm:p-2 rounded-full transition-colors ${viewMode === 'parent' ? 'bg-primary text-white' : 'text-on-surface-variant'}`}>
+            <User size={16} className="sm:w-[18px] sm:h-[18px]" />
           </div>
-          <div className={`p-2 rounded-full transition-colors ${viewMode === 'kid' ? 'bg-secondary-container text-on-secondary-container' : 'text-on-surface-variant'}`}>
-            <Baby size={18} />
+          <div className={`p-1.5 sm:p-2 rounded-full transition-colors ${viewMode === 'kid' ? 'bg-secondary-container text-on-secondary-container' : 'text-on-surface-variant'}`}>
+            <Baby size={16} className="sm:w-[18px] sm:h-[18px]" />
           </div>
         </button>
       </div>
@@ -74,7 +74,7 @@ export default function App() {
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: 20 }}
-            className="flex-grow pb-24"
+            className="flex-grow"
           >
             <ParentDashboard kids={kids} tasks={tasks} onRefresh={refreshData} />
           </motion.div>
@@ -84,7 +84,7 @@ export default function App() {
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -20 }}
-            className="flex-grow pb-24"
+            className="flex-grow"
           >
             <KidDashboard kids={kids} tasks={tasks} onRefresh={refreshData} />
           </motion.div>
