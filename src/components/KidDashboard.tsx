@@ -22,6 +22,12 @@ interface ToastMessage {
 export default function KidDashboard({ kids, tasks, onRefresh }: KidDashboardProps) {
   // For demo, we just pick the first kid (Bilal)
   const currentKid = kids.find(k => k.id === 'bilal') || kids[0];
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const [localKidPoints, setLocalKidPoints] = useState(currentKid?.points ?? 0);
+  const [showWishListCreator, setShowWishListCreator] = useState(false);
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+  const [activeNav, setActiveNav] = useState<'home' | 'tasks' | 'wishes' | 'bank'>('home');
+
   if (!currentKid) {
     return (
       <div className="min-h-screen bg-surface flex items-center justify-center px-6 text-center">
@@ -35,12 +41,201 @@ export default function KidDashboard({ kids, tasks, onRefresh }: KidDashboardPro
 
   const kidTasks = tasks.filter(t => t.assignedTo === currentKid.id);
   const pendingTasks = kidTasks.filter(t => !t.completed);
-  
-  const [toasts, setToasts] = useState<ToastMessage[]>([]);
-  const [localKidPoints, setLocalKidPoints] = useState(currentKid.points);
-  const [showWishListCreator, setShowWishListCreator] = useState(false);
-  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
-  const [activeNav, setActiveNav] = useState<'home' | 'tasks' | 'wishes' | 'bank'>('home');
+
+  const renderSection = () => {
+    switch (activeNav) {
+      case 'tasks':
+        return (
+          <section>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-0 mb-4 sm:mb-6">
+              <h3 className="text-xl sm:text-2xl font-black text-on-surface">Today's Missions</h3>
+              <span className={cn(
+                "px-3 sm:px-4 py-1 rounded-full text-xs font-black uppercase tracking-wider whitespace-nowrap",
+                pendingTasks.length > 0 ? "bg-tertiary-fixed text-on-tertiary-fixed" : "bg-primary-fixed text-on-primary-fixed"
+              )}>
+                {pendingTasks.length === 0 ? "All Done! 🎉" : `${pendingTasks.length} Missions Left`}
+              </span>
+            </div>
+
+            <div className="space-y-3 sm:space-y-4">
+              {kidTasks.length === 0 ? (
+                <div className="bg-white p-6 rounded-2xl text-center text-on-surface-variant">
+                  <p>No tasks yet. Start by creating one!</p>
+                </div>
+              ) : (
+                kidTasks.map(task => (
+                  <TaskCard 
+                    key={task.id} 
+                    task={task} 
+                    showAssignee={false} 
+                    onComplete={handleComplete} 
+                  />
+                ))
+              )}
+            </div>
+          </section>
+        );
+
+      case 'wishes':
+        return (
+          <section className="space-y-4 sm:space-y-6">
+            <div className="bg-white rounded-3xl p-5 sm:p-6 shadow-lg border border-outline-variant">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-lg sm:text-xl font-black text-on-surface">My Wishes</h3>
+                  <p className="text-xs sm:text-sm text-on-surface-variant">Create a new goal or wishlist item.</p>
+                </div>
+                <button
+                  onClick={() => setShowWishListCreator(true)}
+                  className="bg-primary text-white font-bold px-4 py-2 rounded-xl text-sm hover:scale-105 active:scale-95 transition-all"
+                >
+                  Add Goal
+                </button>
+              </div>
+            </div>
+
+            <div className="bg-primary/5 border border-primary/20 rounded-3xl p-5 sm:p-6">
+              <h4 className="text-base sm:text-lg font-bold text-on-surface mb-2">🎁 Next Wish</h4>
+              <p className="text-sm sm:text-base text-on-surface-variant">Weekend Movie Night</p>
+              <div className="mt-4 w-full bg-surface-container h-3 sm:h-4 rounded-full overflow-hidden shadow-inner">
+                <motion.div 
+                  key={localKidPoints}
+                  animate={{ width: `${Math.min(100, (localKidPoints / 500) * 100)}%` }}
+                  transition={{ type: 'spring', stiffness: 100, damping: 20 }}
+                  className="bg-gradient-to-r from-primary to-secondary-container h-full rounded-full shadow-[0_0_8px_rgba(0,150,70,0.3)]"
+                />
+              </div>
+              <p className="mt-2 text-xs sm:text-sm text-on-surface-variant">{Math.max(0, 500 - localKidPoints)} Rs. left to reach this wish.</p>
+            </div>
+          </section>
+        );
+
+      case 'bank':
+        return (
+          <section className="space-y-4 sm:space-y-6">
+            <div className="bg-secondary-container rounded-3xl p-6 sm:p-8 relative overflow-hidden shadow-lg group border-b-8 border-secondary active:border-b-4 active:translate-y-1 transition-all">
+              <div className="absolute -top-10 -right-10 opacity-10 group-hover:scale-110 transition-transform">
+                <Wallet size={150} className="sm:w-[200px]" />
+              </div>
+              <div className="relative z-10">
+                <h2 className="text-xs font-black uppercase tracking-[0.2em] text-on-secondary-container mb-2">My Point Bank</h2>
+                <div className="flex items-baseline gap-1 sm:gap-2">
+                  <span className="text-4xl sm:text-6xl font-black text-on-secondary-fixed">{localKidPoints.toLocaleString()}</span>
+                  <span className="text-lg sm:text-xl font-bold text-on-secondary-fixed/50">Rs.</span>
+                </div>
+                <div className="mt-6 sm:mt-8 flex gap-2 sm:gap-3">
+                  <button 
+                    onClick={() => setShowWithdrawModal(true)}
+                    className="flex-1 bg-white text-secondary font-bold py-3 sm:py-4 rounded-2xl shadow-[0_4px_0_0_#855300] active:shadow-none active:translate-y-1 transition-all text-sm sm:text-base"
+                  >
+                    Withdraw
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-3xl p-5 sm:p-6 shadow-lg border border-outline-variant">
+              <h4 className="text-base sm:text-lg font-bold text-on-surface mb-2">Bank Summary</h4>
+              <p className="text-sm text-on-surface-variant">Track your earnings and withdraw when you want to redeem rewards.</p>
+            </div>
+          </section>
+        );
+
+      case 'home':
+      default:
+        return (
+          <>
+            <section className="bg-secondary-container rounded-3xl p-6 sm:p-8 relative overflow-hidden shadow-lg group border-b-8 border-secondary active:border-b-4 active:translate-y-1 transition-all">
+              <div className="absolute -top-10 -right-10 opacity-10 group-hover:scale-110 transition-transform">
+                <Wallet size={150} className="sm:w-[200px]" />
+              </div>
+              <div className="relative z-10">
+                <h2 className="text-xs font-black uppercase tracking-[0.2em] text-on-secondary-container mb-2">My Point Bank</h2>
+                <motion.div 
+                  key={localKidPoints}
+                  initial={{ scale: 0.9 }}
+                  animate={{ scale: 1 }}
+                  className="flex items-baseline gap-1 sm:gap-2"
+                >
+                  <span className="text-4xl sm:text-6xl font-black text-on-secondary-fixed">{localKidPoints.toLocaleString()}</span>
+                  <span className="text-lg sm:text-xl font-bold text-on-secondary-fixed/50">Rs.</span>
+                </motion.div>
+                <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row gap-2 sm:gap-3">
+                  <button 
+                    onClick={() => setShowWithdrawModal(true)}
+                    className="flex-1 bg-white text-secondary font-bold py-3 sm:py-4 rounded-2xl shadow-[0_4px_0_0_#855300] active:shadow-none active:translate-y-1 transition-all text-sm sm:text-base"
+                  >
+                    Withdraw
+                  </button>
+                  <button 
+                    onClick={() => setShowWishListCreator(true)}
+                    className="flex-1 bg-primary text-white font-bold py-3 sm:py-4 rounded-2xl shadow-[0_4px_0_0_#003c0b] active:shadow-none active:translate-y-1 transition-all text-sm sm:text-base"
+                  >
+                    Add Goal
+                  </button>
+                </div>
+              </div>
+            </section>
+
+            <section>
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-0 mb-4 sm:mb-6">
+                <h3 className="text-xl sm:text-2xl font-black text-on-surface">Today's Missions</h3>
+                <span className={cn(
+                  "px-3 sm:px-4 py-1 rounded-full text-xs font-black uppercase tracking-wider whitespace-nowrap",
+                  pendingTasks.length > 0 ? "bg-tertiary-fixed text-on-tertiary-fixed" : "bg-primary-fixed text-on-primary-fixed"
+                )}>
+                  {pendingTasks.length === 0 ? "All Done! 🎉" : `${pendingTasks.length} Missions Left`}
+                </span>
+              </div>
+
+              <div className="space-y-3 sm:space-y-4">
+                {kidTasks.length === 0 ? (
+                  <div className="bg-white p-6 rounded-2xl text-center text-on-surface-variant">
+                    <p>No tasks yet. Start by creating one!</p>
+                  </div>
+                ) : (
+                  kidTasks.map(task => (
+                    <TaskCard 
+                      key={task.id} 
+                      task={task} 
+                      showAssignee={false} 
+                      onComplete={handleComplete} 
+                    />
+                  ))
+                )}
+              </div>
+            </section>
+
+            <section className="bg-white rounded-3xl p-5 sm:p-6 shadow-lg border border-outline-variant">
+              <div className="space-y-3">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-0">
+                  <div>
+                    <h3 className="text-base sm:text-lg font-bold text-on-surface">🎁 Next Wish</h3>
+                    <p className="text-xs sm:text-sm text-on-surface-variant">Weekend Movie Night</p>
+                  </div>
+                  <div className="text-right text-sm">
+                    <div className="font-bold text-primary text-sm">Rs. {localKidPoints} / Rs. 500</div>
+                    <div className="text-xs text-on-surface-variant">{Math.round((localKidPoints / 500) * 100)}% Complete</div>
+                  </div>
+                </div>
+                <div className="w-full bg-surface-container h-3 sm:h-4 rounded-full overflow-hidden shadow-inner">
+                  <motion.div 
+                    key={localKidPoints}
+                    animate={{ width: `${(localKidPoints / 500) * 100}%` }}
+                    transition={{ type: 'spring', stiffness: 100, damping: 20 }}
+                    className="bg-gradient-to-r from-primary to-secondary-container h-full rounded-full shadow-[0_0_8px_rgba(0,150,70,0.3)]"
+                  />
+                </div>
+                <div className="flex justify-between text-xs text-on-surface-variant font-semibold">
+                  <span>Start</span>
+                  <span>{Math.max(0, 500 - localKidPoints)} Rs. to go!</span>
+                </div>
+              </div>
+            </section>
+          </>
+        );
+    }
+  };
 
   const handleComplete = async (taskId: number) => {
     try {
@@ -154,96 +349,7 @@ export default function KidDashboard({ kids, tasks, onRefresh }: KidDashboardPro
         </button>
       </header>
 
-      {/* Point Bank Card */}
-      <section className="bg-secondary-container rounded-3xl p-6 sm:p-8 relative overflow-hidden shadow-lg group border-b-8 border-secondary active:border-b-4 active:translate-y-1 transition-all">
-        <div className="absolute -top-10 -right-10 opacity-10 group-hover:scale-110 transition-transform">
-          <Wallet size={150} className="sm:w-[200px]" />
-        </div>
-        <div className="relative z-10">
-          <h2 className="text-xs font-black uppercase tracking-[0.2em] text-on-secondary-container mb-2">My Point Bank</h2>
-          <motion.div 
-            key={localKidPoints}
-            initial={{ scale: 0.9 }}
-            animate={{ scale: 1 }}
-            className="flex items-baseline gap-1 sm:gap-2"
-          >
-            <span className="text-4xl sm:text-6xl font-black text-on-secondary-fixed">{localKidPoints.toLocaleString()}</span>
-            <span className="text-lg sm:text-xl font-bold text-on-secondary-fixed/50">Rs.</span>
-          </motion.div>
-          <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row gap-2 sm:gap-3">
-            <button 
-              onClick={() => setShowWithdrawModal(true)}
-              className="flex-1 bg-white text-secondary font-bold py-3 sm:py-4 rounded-2xl shadow-[0_4px_0_0_#855300] active:shadow-none active:translate-y-1 transition-all text-sm sm:text-base"
-            >
-              Withdraw
-            </button>
-            <button 
-              onClick={() => setShowWishListCreator(true)}
-              className="flex-1 bg-primary text-white font-bold py-3 sm:py-4 rounded-2xl shadow-[0_4px_0_0_#003c0b] active:shadow-none active:translate-y-1 transition-all text-sm sm:text-base"
-            >
-              Add Goal
-            </button>
-          </div>
-        </div>
-      </section>
-
-      {/* Today's Missions */}
-      <section>
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-0 mb-4 sm:mb-6">
-          <h3 className="text-xl sm:text-2xl font-black text-on-surface">Today's Missions</h3>
-          <span className={cn(
-            "px-3 sm:px-4 py-1 rounded-full text-xs font-black uppercase tracking-wider whitespace-nowrap",
-            pendingTasks.length > 0 ? "bg-tertiary-fixed text-on-tertiary-fixed" : "bg-primary-fixed text-on-primary-fixed"
-          )}>
-            {pendingTasks.length === 0 ? "All Done! 🎉" : `${pendingTasks.length} Missions Left`}
-          </span>
-        </div>
-
-        <div className="space-y-3 sm:space-y-4">
-          {kidTasks.length === 0 ? (
-            <div className="bg-white p-6 rounded-2xl text-center text-on-surface-variant">
-              <p>No tasks yet. Start by creating one!</p>
-            </div>
-          ) : (
-            kidTasks.map(task => (
-              <TaskCard 
-                key={task.id} 
-                task={task} 
-                showAssignee={false} 
-                onComplete={handleComplete} 
-              />
-            ))
-          )}
-        </div>
-      </section>
-
-      {/* Next Wish Progress Bar */}
-      <section className="bg-white rounded-3xl p-5 sm:p-6 shadow-lg border border-outline-variant">
-        <div className="space-y-3">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-0">
-            <div>
-              <h3 className="text-base sm:text-lg font-bold text-on-surface">🎁 Next Wish</h3>
-              <p className="text-xs sm:text-sm text-on-surface-variant">Weekend Movie Night</p>
-            </div>
-            <div className="text-right text-sm">
-              <div className="font-bold text-primary text-sm">Rs. {localKidPoints} / Rs. 500</div>
-              <div className="text-xs text-on-surface-variant">{Math.round((localKidPoints / 500) * 100)}% Complete</div>
-            </div>
-          </div>
-          <div className="w-full bg-surface-container h-3 sm:h-4 rounded-full overflow-hidden shadow-inner">
-            <motion.div 
-              key={localKidPoints}
-              animate={{ width: `${(localKidPoints / 500) * 100}%` }}
-              transition={{ type: 'spring', stiffness: 100, damping: 20 }}
-              className="bg-gradient-to-r from-primary to-secondary-container h-full rounded-full shadow-[0_0_8px_rgba(0,150,70,0.3)]"
-            />
-          </div>
-          <div className="flex justify-between text-xs text-on-surface-variant font-semibold">
-            <span>Start</span>
-            <span>{Math.max(0, 500 - localKidPoints)} Rs. to go!</span>
-          </div>
-        </div>
-      </section>
+      {renderSection()}
 
       {/* Bottom Navigation */}
       <nav className="fixed bottom-0 left-0 w-full h-20 sm:h-24 bg-white border-t border-outline-variant shadow-2xl flex justify-around items-center px-2 sm:px-4">

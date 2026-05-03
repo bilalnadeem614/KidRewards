@@ -16,7 +16,6 @@ interface ParentDashboardProps {
 export default function ParentDashboard({ kids, tasks, onRefresh }: ParentDashboardProps) {
   const [selectedKid, setSelectedKid] = useState<string | null>(null);
   const [showAI, setShowAI] = useState(false);
-  const [showActivityLog, setShowActivityLog] = useState(false);
   const [activeNav, setActiveNav] = useState<'kids' | 'tasks' | 'reports' | 'settings'>('tasks');
 
   const filteredTasks = selectedKid 
@@ -25,10 +24,133 @@ export default function ParentDashboard({ kids, tasks, onRefresh }: ParentDashbo
 
   const totalPointsAwarded = tasks.filter(t => t.completed).reduce((sum, t) => sum + t.points, 0);
 
-  // If ActivityLog is shown, render it instead of the main dashboard
-  if (showActivityLog) {
-    return <ActivityLog tasks={tasks} kids={kids} onBack={() => setShowActivityLog(false)} />;
-  }
+  const renderSection = () => {
+    switch (activeNav) {
+      case 'kids':
+        return (
+          <section className="space-y-4 sm:space-y-6">
+            <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-outline-variant">
+              <h3 className="text-lg sm:text-xl font-bold text-on-surface mb-2">Kids Overview</h3>
+              <p className="text-sm text-on-surface-variant">Tap a child to focus the task list.</p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+              {kids.map(kid => (
+                <button
+                  key={kid.id}
+                  onClick={() => setSelectedKid(kid.id)}
+                  className={cn(
+                    "text-left bg-white p-4 sm:p-5 rounded-2xl shadow-sm border transition-all",
+                    selectedKid === kid.id ? "border-primary ring-2 ring-primary/20" : "border-outline-variant hover:border-primary/40"
+                  )}
+                >
+                  <div className="flex items-center gap-3">
+                    <img src={kid.avatar} alt={kid.name} className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-sm" />
+                    <div>
+                      <h4 className="font-bold text-on-surface">{kid.name}</h4>
+                      <p className="text-sm text-on-surface-variant">Rs. {kid.points} points</p>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </section>
+        );
+
+      case 'reports':
+        return <ActivityLog tasks={tasks} kids={kids} onBack={() => setActiveNav('tasks')} />;
+
+      case 'settings':
+        return (
+          <section className="space-y-4 sm:space-y-6">
+            <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-outline-variant">
+              <h3 className="text-lg sm:text-xl font-bold text-on-surface mb-2">Settings</h3>
+              <p className="text-sm text-on-surface-variant">This section can hold app preferences, notifications, and account controls.</p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+              <div className="bg-white p-4 rounded-2xl border border-outline-variant">
+                <p className="text-xs font-bold uppercase text-on-surface-variant mb-1">Notifications</p>
+                <p className="text-sm text-on-surface">Manage reminder alerts and goal updates.</p>
+              </div>
+              <div className="bg-white p-4 rounded-2xl border border-outline-variant">
+                <p className="text-xs font-bold uppercase text-on-surface-variant mb-1">Rewards</p>
+                <p className="text-sm text-on-surface">Adjust reward values and approval rules.</p>
+              </div>
+            </div>
+          </section>
+        );
+
+      case 'tasks':
+      default:
+        return (
+          <>
+            {/* Kid Selection */}
+            <div className="flex gap-2 overflow-x-auto pb-4 no-scrollbar mb-4 sm:mb-6 -mx-4 sm:-mx-6 px-4 sm:px-6">
+              <button 
+                onClick={() => setSelectedKid(null)}
+                className={`px-4 sm:px-6 py-2 rounded-full font-semibold whitespace-nowrap transition-all text-sm sm:text-base ${!selectedKid ? 'bg-primary text-white' : 'bg-white border border-outline-variant text-on-surface-variant'}`}
+              >
+                All Kids
+              </button>
+              {kids.map(kid => (
+                <button 
+                  key={kid.id}
+                  onClick={() => setSelectedKid(kid.id)}
+                  className={`px-4 sm:px-6 py-2 rounded-full font-semibold whitespace-nowrap transition-all text-sm sm:text-base ${selectedKid === kid.id ? 'bg-primary text-white' : 'bg-white border border-outline-variant text-on-surface-variant'}`}
+                >
+                  {kid.name}
+                </button>
+              ))}
+            </div>
+
+            {/* Today's Tasks Header */}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-0 mb-4">
+              <h3 className="text-lg sm:text-xl font-bold text-on-surface">Recent Activity</h3>
+              <button 
+                onClick={() => setActiveNav('reports')}
+                className="text-xs sm:text-sm font-bold text-primary flex items-center gap-1 hover:gap-2 transition-all"
+              >
+                View All <ChevronRight size={16} />
+              </button>
+            </div>
+
+            {/* Task List */}
+            <div className="space-y-3 sm:space-y-4 mb-12">
+              {filteredTasks.length === 0 ? (
+                <div className="bg-white p-6 rounded-2xl text-center text-on-surface-variant">
+                  <p>No tasks yet. Create your first task!</p>
+                </div>
+              ) : (
+                filteredTasks.map(task => (
+                  <TaskCard key={task.id} task={task} />
+                ))
+              )}
+            </div>
+
+            {/* Weekly Milestone */}
+            <div className="bg-primary/90 text-white p-5 sm:p-6 rounded-3xl relative overflow-hidden mb-12">
+              <div className="relative z-10">
+                <h3 className="text-base sm:text-lg font-bold mb-1">Motivation Center</h3>
+                <p className="text-xs sm:text-sm opacity-80 mb-4 sm:mb-6">Bilal is only 15 points away from the "Weekend Movie" reward!</p>
+                <div className="w-full bg-white/20 h-2 sm:h-3 rounded-full overflow-hidden">
+                  <motion.div 
+                    initial={{ width: 0 }}
+                    animate={{ width: '85%' }}
+                    transition={{ duration: 1.5, ease: "easeOut" }}
+                    className="bg-primary-fixed h-full rounded-full shadow-[0_0_12px_rgba(255,255,255,0.4)]"
+                  />
+                </div>
+                <div className="flex justify-between mt-2 text-xs font-bold">
+                  <span>Rs. 185 / Rs. 200</span>
+                  <span className="text-primary-fixed">85% Complete</span>
+                </div>
+              </div>
+            </div>
+          </>
+        );
+    }
+  };
 
   return (
     <div className="min-h-screen bg-surface max-w-7xl mx-auto">
@@ -79,69 +201,7 @@ export default function ParentDashboard({ kids, tasks, onRefresh }: ParentDashbo
           </div>
         </div>
       </div>
-
-      {/* Kid Selection */}
-      <div className="flex gap-2 overflow-x-auto pb-4 no-scrollbar mb-4 sm:mb-6 -mx-4 sm:-mx-6 px-4 sm:px-6">
-        <button 
-          onClick={() => setSelectedKid(null)}
-          className={`px-4 sm:px-6 py-2 rounded-full font-semibold whitespace-nowrap transition-all text-sm sm:text-base ${!selectedKid ? 'bg-primary text-white' : 'bg-white border border-outline-variant text-on-surface-variant'}`}
-        >
-          All Kids
-        </button>
-        {kids.map(kid => (
-          <button 
-            key={kid.id}
-            onClick={() => setSelectedKid(kid.id)}
-            className={`px-4 sm:px-6 py-2 rounded-full font-semibold whitespace-nowrap transition-all text-sm sm:text-base ${selectedKid === kid.id ? 'bg-primary text-white' : 'bg-white border border-outline-variant text-on-surface-variant'}`}
-          >
-            {kid.name}
-          </button>
-        ))}
-      </div>
-
-      {/* Today's Tasks Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-0 mb-4">
-        <h3 className="text-lg sm:text-xl font-bold text-on-surface">Recent Activity</h3>
-        <button 
-          onClick={() => setShowActivityLog(true)}
-          className="text-xs sm:text-sm font-bold text-primary flex items-center gap-1 hover:gap-2 transition-all"
-        >
-          View All <ChevronRight size={16} />
-        </button>
-      </div>
-
-      {/* Task List */}
-      <div className="space-y-3 sm:space-y-4 mb-12">
-        {filteredTasks.length === 0 ? (
-          <div className="bg-white p-6 rounded-2xl text-center text-on-surface-variant">
-            <p>No tasks yet. Create your first task!</p>
-          </div>
-        ) : (
-          filteredTasks.map(task => (
-            <TaskCard key={task.id} task={task} />
-          ))
-        )}
-      </div>
-
-      {/* Weekly Milestone */}
-      <div className="bg-primary/90 text-white p-5 sm:p-6 rounded-3xl relative overflow-hidden mb-12">
-        <div className="relative z-10">
-          <h3 className="text-base sm:text-lg font-bold mb-1">Motivation Center</h3>
-          <p className="text-xs sm:text-sm opacity-80 mb-4 sm:mb-6">Bilal is only 15 points away from the "Weekend Movie" reward!</p>
-          <div className="w-full bg-white/20 h-2 sm:h-3 rounded-full overflow-hidden">
-            <motion.div 
-              initial={{ width: 0 }}
-              animate={{ width: '85%' }}
-              transition={{ duration: 1.5, ease: "easeOut" }}
-              className="bg-primary-fixed h-full rounded-full shadow-[0_0_12px_rgba(255,255,255,0.4)]"
-            />
-          </div>
-          <div className="flex justify-between mt-2 text-xs font-bold">
-            <span>Rs. 185 / Rs. 200</span>
-            <span className="text-primary-fixed">85% Complete</span>
-          </div>
-        </div>
-      </div>
+      {renderSection()}
 
       {/* AI Suggester Modal Trigger */}
       <div className="fixed bottom-24 sm:bottom-20 right-3 sm:right-4 flex flex-col gap-2 sm:gap-3">
