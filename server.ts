@@ -31,6 +31,39 @@ const getGeminiClient = () => {
   return new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 };
 
+const buildFallbackSuggestions = (age: number, interestsText: string) => {
+  const interests = interestsText.split(/,|and/).map(part => part.trim()).filter(Boolean);
+  const primaryInterest = interests[0] || 'their interests';
+
+  return [
+    {
+      title: `Organize ${primaryInterest.toLowerCase()}`,
+      points: Math.max(10, Math.min(40, age * 4)),
+      reason: `A simple task that matches ${primaryInterest.toLowerCase()} and builds responsibility.`
+    },
+    {
+      title: 'Tidy up the play area',
+      points: Math.max(8, Math.min(30, age * 3)),
+      reason: 'A quick win to keep the space neat and easy to use.'
+    },
+    {
+      title: `Spend 15 minutes on ${primaryInterest.toLowerCase()}`,
+      points: Math.max(12, Math.min(35, age * 4)),
+      reason: `Turns ${primaryInterest.toLowerCase()} into a positive routine.`
+    },
+    {
+      title: 'Help with one family chore',
+      points: Math.max(15, Math.min(45, age * 5)),
+      reason: 'Builds teamwork while keeping the task age-appropriate.'
+    },
+    {
+      title: 'Read or learn something new',
+      points: Math.max(10, Math.min(32, age * 3)),
+      reason: 'Encourages learning and focus in a simple way.'
+    }
+  ];
+};
+
 async function startServer() {
   const app = express();
   const PORT = 3000;
@@ -133,10 +166,6 @@ async function startServer() {
     const { childAge, interests } = req.body as { childAge?: number; interests?: string | string[] };
     const ai = getGeminiClient();
 
-    if (!ai) {
-      return res.status(500).json({ error: "GEMINI_API_KEY not configured" });
-    }
-
     if (childAge == null || !interests) {
       return res.status(400).json({ error: "childAge and interests are required" });
     }
@@ -147,6 +176,10 @@ async function startServer() {
     }
 
     const interestsText = Array.isArray(interests) ? interests.join(", ") : interests;
+
+    if (!ai) {
+      return res.json(buildFallbackSuggestions(age, interestsText));
+    }
 
     try {
       const response = await ai.models.generateContent({
@@ -174,7 +207,7 @@ async function startServer() {
       res.json(suggestions.slice(0, 5));
     } catch (error) {
       console.error("AI Error (suggest tasks):", error);
-      res.status(500).json({ error: "Failed to generate task suggestions" });
+      res.json(buildFallbackSuggestions(age, interestsText));
     }
   };
 
